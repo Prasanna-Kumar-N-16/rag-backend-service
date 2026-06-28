@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-backend-service"
+version = "0.1.0"
+description = "Production-ready RAG backend: FastAPI + pgvector + Anthropic Claude, with hybrid retrieval, reranking, and Responsible-AI guardrails."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+
+# NOTE: strict (==) pins for reproducibility. Provider SDKs (anthropic/voyageai/
+# cohere) are only *called* from Day 4 onward; pins may be bumped then.
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.1",
+    "structlog==24.4.0",
+    "anthropic==0.42.0",
+    "voyageai==0.3.2",
+    "cohere==5.13.6",
+    "asyncpg==0.30.0",
+    "pgvector==0.3.6",
+    "boto3==1.35.92",
+    "tenacity==9.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.0",
+    "httpx==0.28.1",
+    "respx==0.22.0",
+    "ruff==0.8.6",
+    "mypy==1.14.1",
+]
+# Optional, heavyweight PII backend. Without it, guardrails fall back to a
+# regex detector (see app/guardrails/pii.py, added on Day 5).
+pii = [
+    "presidio-analyzer==2.2.355",
+    "presidio-anonymizer==2.2.355",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["voyageai.*", "cohere.*", "pgvector.*", "boto3.*", "botocore.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
