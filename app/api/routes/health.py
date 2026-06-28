@@ -1,8 +1,7 @@
 """Liveness and readiness endpoints.
 
-``/healthz`` is a pure liveness probe (process is up). ``/readyz`` is a
-readiness probe that, from Day 2 onward, will also verify the database pool.
-For Day 1 it reports ready unconditionally.
+``/healthz`` is a pure liveness probe (process is up).
+``/readyz`` additionally verifies the database pool is reachable.
 """
 
 from __future__ import annotations
@@ -14,6 +13,7 @@ from pydantic import BaseModel
 
 from app import __version__
 from app.config import get_settings
+from app.db import pool_is_healthy
 
 router = APIRouter(tags=["health"])
 
@@ -41,13 +41,11 @@ async def healthz() -> HealthResponse:
 
 @router.get("/readyz", response_model=HealthResponse, summary="Readiness probe")
 async def readyz() -> HealthResponse:
-    """Return ``ok`` when the service is ready to accept traffic.
-
-    Day 1: always ready. A later iteration adds a database-pool check here.
-    """
+    """Return ``ok`` when the service is ready (DB pool reachable)."""
     settings = get_settings()
+    db_ok = await pool_is_healthy()
     return HealthResponse(
-        status="ok",
+        status="ok" if db_ok else "degraded",
         service=settings.app_name,
         version=__version__,
         environment=settings.environment,

@@ -1,8 +1,8 @@
 """FastAPI application factory and entrypoint.
 
 The ASGI app is exposed as ``app`` for ``uvicorn app.main:app``. A lifespan
-context manager owns startup/shutdown; from Day 2 it will open and close the
-database connection pool.
+context manager owns the asyncpg connection pool (opened on startup, closed on
+shutdown) so connections are shared across the whole request lifetime.
 """
 
 from __future__ import annotations
@@ -15,15 +15,13 @@ from fastapi import FastAPI
 from app import __version__
 from app.api.routes import health
 from app.config import Settings, get_settings
+from app.db import close_db, init_db
 from app.logging import configure_logging, get_logger
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Manage application startup and shutdown.
-
-    Day 1: configures logging only. Day 2 adds DB pool open/close here.
-    """
+    """Manage application startup and shutdown resources."""
     settings: Settings = get_settings()
     configure_logging(level=settings.log_level, json_logs=settings.log_json)
     logger = get_logger("app.startup")
@@ -33,9 +31,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         version=__version__,
         environment=settings.environment,
     )
+
+    await init_db(settings)
+
     try:
         yield
     finally:
+        await close_db()
         get_logger("app.shutdown").info("service_stopping", service=settings.app_name)
 
 
