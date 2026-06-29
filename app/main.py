@@ -13,7 +13,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
-from app.api.routes import health
+from app.api.middleware import RequestIDMiddleware
+from app.api.routes import health, ingest, query
 from app.config import Settings, get_settings
 from app.db import close_db, init_db
 from app.logging import configure_logging, get_logger
@@ -50,7 +51,13 @@ def create_app() -> FastAPI:
         summary="Retrieval-Augmented Generation backend service.",
         lifespan=lifespan,
     )
+
+    app.add_middleware(RequestIDMiddleware)
+
     app.include_router(health.router)
+    app.include_router(query.router)
+    app.include_router(ingest.router)
+
     return app
 
 
