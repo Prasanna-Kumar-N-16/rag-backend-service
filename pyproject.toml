@@ -61,7 +61,7 @@ disallow_untyped_defs = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["voyageai.*", "cohere.*", "pgvector.*", "boto3.*", "botocore.*"]
+module = ["voyageai.*", "cohere.*", "pgvector.*", "boto3.*", "botocore.*", "asyncpg.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
