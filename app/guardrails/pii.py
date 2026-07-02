@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
+from typing import Any
 
 from app.logging import get_logger
 
@@ -108,16 +110,30 @@ def mask_pii(text: str) -> PIIResult:
     return PIIResult(masked_text=masked, found_types=list(dict.fromkeys(found)))
 
 
-def _presidio_pass(text: str) -> tuple[str, list[str]]:
-    """Run Presidio analyzer + anonymizer if the package is available."""
+@lru_cache(maxsize=1)
+def _load_presidio_engines() -> tuple[Any, Any] | None:
+    """Lazily import and cache the Presidio engines.
+
+    ``AnalyzerEngine()`` loads a spaCy NLP model on construction, which is
+    expensive. Since ``mask_pii`` runs on every request (query guard-in and
+    output guard-out), constructing fresh engines per call would reload that
+    model on every request. Cache the pair for the lifetime of the process.
+    Returns ``None`` if the optional ``presidio`` extra is not installed.
+    """
     try:
         from presidio_analyzer import AnalyzerEngine
         from presidio_anonymizer import AnonymizerEngine
     except ImportError:
-        return text, []
+        return None
+    return AnalyzerEngine(), AnonymizerEngine()
 
-    analyzer = AnalyzerEngine()
-    anonymizer = AnonymizerEngine()
+
+def _presidio_pass(text: str) -> tuple[str, list[str]]:
+    """Run Presidio analyzer + anonymizer if the package is available."""
+    engines = _load_presidio_engines()
+    if engines is None:
+        return text, []
+    analyzer, anonymizer = engines
 
     results = analyzer.analyze(text=text, language="en")
     if not results:

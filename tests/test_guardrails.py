@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -130,6 +131,48 @@ class TestPromptInjection:
 
     def test_returns_injection_result_type(self) -> None:
         assert isinstance(check_injection("test"), InjectionResult)
+
+
+# ── Presidio engine caching ───────────────────────────────────────────────────
+
+class TestPresidioCaching:
+    def test_presidio_engines_constructed_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import sys
+        import types
+
+        from app.guardrails import pii as pii_module
+
+        pii_module._load_presidio_engines.cache_clear()
+        construct_count = {"analyzer": 0, "anonymizer": 0}
+
+        class FakeAnalyzerEngine:
+            def __init__(self) -> None:
+                construct_count["analyzer"] += 1
+
+            def analyze(self, text: str, language: str) -> list[object]:
+                return []
+
+        class FakeAnonymizerEngine:
+            def __init__(self) -> None:
+                construct_count["anonymizer"] += 1
+
+        fake_analyzer_module = types.ModuleType("presidio_analyzer")
+        fake_analyzer_module.AnalyzerEngine = FakeAnalyzerEngine  # type: ignore[attr-defined]
+        fake_anonymizer_module = types.ModuleType("presidio_anonymizer")
+        fake_anonymizer_module.AnonymizerEngine = FakeAnonymizerEngine  # type: ignore[attr-defined]
+
+        monkeypatch.setitem(sys.modules, "presidio_analyzer", fake_analyzer_module)
+        monkeypatch.setitem(sys.modules, "presidio_anonymizer", fake_anonymizer_module)
+
+        try:
+            pii_module.mask_pii("first call")
+            pii_module.mask_pii("second call")
+            pii_module.mask_pii("third call")
+
+            assert construct_count["analyzer"] == 1
+            assert construct_count["anonymizer"] == 1
+        finally:
+            pii_module._load_presidio_engines.cache_clear()
 
 
 # ── Output guard ─────────────────────────────────────────────────────────────
