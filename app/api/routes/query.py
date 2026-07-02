@@ -20,7 +20,7 @@ from app.config import Settings, get_settings
 from app.generation.synthesizer import Synthesizer
 from app.guardrails.output_guard import validate_output
 from app.guardrails.pii import mask_pii
-from app.guardrails.prompt_injection import check_injection
+from app.guardrails.prompt_injection import check_context_injection, check_injection
 from app.indexing.embedder import Embedder
 from app.logging import get_logger
 from app.retrieval.hybrid import hybrid_retrieve
@@ -61,6 +61,19 @@ async def query(
         # ── Stage 3: rerank ───────────────────────────────────────────────────
         ranked = await reranker.rerank(body.query, fused, top_k=body.top_k)
 
+        # ── Guard-in: prompt injection in retrieved context ───────────────────
+        context_injection = check_context_injection(ranked)
+        if context_injection.risk_level == "high":
+            logger.warning(
+                "query_blocked_context_injection",
+                risk=context_injection.risk_level,
+                sources=[r.source_key for r in ranked],
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Query blocked: potential prompt injection detected in retrieved context.",
+            )
+
         # ── Stage 4: synthesize ───────────────────────────────────────────────
         result = await synthesizer.synthesize(
             query=body.query,
@@ -68,6 +81,8 @@ async def query(
             max_tokens=body.max_tokens,
         )
 
+    except HTTPException:
+        raise
     except (anthropic.RateLimitError, anthropic.InternalServerError) as exc:
         logger.error("generation_error", error=str(exc))
         raise HTTPException(
