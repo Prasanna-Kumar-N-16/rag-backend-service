@@ -10,7 +10,6 @@ twice is safe and cheap.
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 
 import asyncpg
@@ -99,21 +98,24 @@ class Indexer:
         texts = [c.text for c in chunks]
         embeddings = await self._embedder.embed(texts)
 
+        # asyncpg forbids concurrent operations on a single connection, so the
+        # per-chunk upserts must not be fired off in parallel on one ``conn``.
+        # ``executemany`` runs them sequentially over the same connection in a
+        # single round-trip batch — correct and faster than gathering executes.
+        rows = [
+            (
+                _chunk_id(source_key, chunk.index),
+                source_key,
+                chunk.index,
+                chunk.text,
+                _content_hash(chunk.text),
+                embeddings[i],
+            )
+            for i, chunk in enumerate(chunks)
+        ]
+
         pool: asyncpg.Pool = get_pool()
         async with pool.acquire() as conn:
-            await asyncio.gather(
-                *[
-                    conn.execute(
-                        _UPSERT_SQL,
-                        _chunk_id(source_key, chunk.index),
-                        source_key,
-                        chunk.index,
-                        chunk.text,
-                        _content_hash(chunk.text),
-                        embeddings[i],
-                    )
-                    for i, chunk in enumerate(chunks)
-                ]
-            )
+            await conn.executemany(_UPSERT_SQL, rows)
 
         return len(chunks)
