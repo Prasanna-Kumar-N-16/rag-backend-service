@@ -8,6 +8,8 @@ them through ``Depends()`` so they are swappable in tests via
 
 from __future__ import annotations
 
+import threading
+
 from fastapi import Depends
 
 from app.config import Settings, get_settings
@@ -22,25 +24,37 @@ _reranker: Reranker | None = None
 _claude_client: ClaudeClient | None = None
 _synthesizer: Synthesizer | None = None
 
+# Guards singleton construction. FastAPI runs sync dependencies in a
+# threadpool, so concurrent first requests can otherwise race past the
+# ``is None`` check and construct duplicate instances (leaking, for
+# ClaudeClient/Reranker, an unused HTTP client).
+_lock = threading.Lock()
+
 
 def get_embedder(settings: Settings = Depends(get_settings)) -> Embedder:
     global _embedder  # noqa: PLW0603
     if _embedder is None:
-        _embedder = Embedder(settings)
+        with _lock:
+            if _embedder is None:
+                _embedder = Embedder(settings)
     return _embedder
 
 
 def get_reranker(settings: Settings = Depends(get_settings)) -> Reranker:
     global _reranker  # noqa: PLW0603
     if _reranker is None:
-        _reranker = Reranker(settings)
+        with _lock:
+            if _reranker is None:
+                _reranker = Reranker(settings)
     return _reranker
 
 
 def get_claude_client(settings: Settings = Depends(get_settings)) -> ClaudeClient:
     global _claude_client  # noqa: PLW0603
     if _claude_client is None:
-        _claude_client = ClaudeClient(settings)
+        with _lock:
+            if _claude_client is None:
+                _claude_client = ClaudeClient(settings)
     return _claude_client
 
 
@@ -50,7 +64,9 @@ def get_synthesizer(
 ) -> Synthesizer:
     global _synthesizer  # noqa: PLW0603
     if _synthesizer is None:
-        _synthesizer = Synthesizer(client=client, model=settings.generation_model)
+        with _lock:
+            if _synthesizer is None:
+                _synthesizer = Synthesizer(client=client, model=settings.generation_model)
     return _synthesizer
 
 
