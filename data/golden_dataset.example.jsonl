@@ -1,0 +1,5 @@
+# Golden evaluation dataset (JSONL). One example per line.
+# Fields: query (required), reference_answer (optional), relevant_source_keys (optional).
+{"query": "What is the capital of France?", "reference_answer": "Paris is the capital of France.", "relevant_source_keys": ["geography/france.txt"]}
+{"query": "How does reciprocal rank fusion combine result lists?", "reference_answer": "RRF sums 1/(k+rank) across lists and re-sorts by the combined score.", "relevant_source_keys": ["retrieval/rrf.txt"]}
+{"query": "What embedding model does the service use?", "reference_answer": "It uses Voyage AI voyage-3 embeddings.", "relevant_source_keys": ["config/models.txt"]}
