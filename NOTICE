@@ -1,0 +1,14 @@
+rag-backend-service
+Copyright 2026 Prasanna Kumar Nagaboyina
+
+This product includes software developed as a Retrieval-Augmented Generation
+(RAG) backend service.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0
+
+This software integrates with third-party services and libraries, each governed
+by their own licenses, including (non-exhaustively): FastAPI, Pydantic,
+Uvicorn, structlog, asyncpg, pgvector, boto3, tenacity, the Anthropic, Voyage
+AI, and Cohere SDKs, and (optionally) Microsoft Presidio.

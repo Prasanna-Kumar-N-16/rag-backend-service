@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "Production-ready RAG backend: FastAPI + pgvector + Anthropic Claude, with hybrid retrieval, reranking, and Responsible-AI guardrails."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "Proprietary" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 
 # NOTE: strict (==) pins for reproducibility. Provider SDKs (anthropic/voyageai/
 # cohere) are only *called* from Day 4 onward; pins may be bumped then.

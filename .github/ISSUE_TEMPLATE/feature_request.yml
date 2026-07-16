@@ -1,0 +1,38 @@
+name: ✨ Feature request
+description: Suggest an enhancement or new capability
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem are you trying to solve? What's the use case?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or API you'd like.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you evaluated and why you set them aside.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - api
+        - indexing
+        - retrieval
+        - generation
+        - guardrails
+        - evaluation
+        - config / infra
+        - new subsystem
+    validations:
+      required: true
