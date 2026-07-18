@@ -29,9 +29,6 @@ logger = get_logger(__name__)
 # on paraphrasing.
 _MIN_GROUNDEDNESS_RATIO = 0.15
 
-# Short answers (≤ this many tokens) skip the groundedness check.
-_MIN_TOKENS_FOR_GROUNDEDNESS = 15
-
 # Common words to exclude from keyword overlap calculation.
 _STOPWORDS = frozenset(
     "a an the is are was were be been being have has had do does did will would "
@@ -94,7 +91,12 @@ def validate_output(
     is_grounded = True
     groundedness_score = 1.0
 
-    if len(answer_words) >= _MIN_TOKENS_FOR_GROUNDEDNESS and context_chunks:
+    # An answer with no non-trivial content words (e.g. a bare number or a
+    # single stopword) has nothing to check overlap on — treat as grounded
+    # rather than dividing by zero. Otherwise always check, including short
+    # answers: a short but confidently wrong answer is exactly the case a
+    # groundedness check should catch.
+    if answer_words and context_chunks:
         context_text = " ".join(c.content for c in context_chunks)
         context_words = _tokenize(context_text)
 

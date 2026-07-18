@@ -68,16 +68,19 @@ The full stack (API + PostgreSQL/pgvector) comes up with one command:
 
 ```bash
 # Provider keys are read from your shell env (or an .env file Compose loads).
-export ANTHROPIC_API_KEY=... VOYAGE_API_KEY=... COHERE_API_KEY=...
+export ANTHROPIC_API_KEY=... VOYAGE_API_KEY=... COHERE_API_KEY=... API_KEY=...
 docker compose up --build
 
 curl localhost:8000/healthz   # liveness
 curl localhost:8000/readyz    # readiness (DB reachable)
+curl -H "X-API-Key: $API_KEY" -d '{"query": "..."}' localhost:8000/v1/query
 ```
 
 The API boots health-only if no provider keys are set; `/v1/query` and
-`/v1/ingest` need them. Database schema (extension, table, HNSW + GIN indexes)
-is bootstrapped automatically on first boot.
+`/v1/ingest` need them, plus `API_KEY` — both routes require a matching
+`X-API-Key` header on every request and refuse to boot unauthenticated (500)
+if `API_KEY` isn't configured. Database schema (extension, table, HNSW + GIN
+indexes) is bootstrapped automatically on first boot.
 
 ## Evaluation
 

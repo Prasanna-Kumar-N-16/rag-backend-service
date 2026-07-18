@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     voyage_api_key: str | None = None
     cohere_api_key: str | None = None
 
+    # ── Inbound auth ─────────────────────────────────────────────────────────
+    # Required to call /v1/query or /v1/ingest. None (unset) means those
+    # routes are refused with a 500 rather than left open, so a forgotten
+    # env var fails closed instead of exposing an unauthenticated service.
+    api_key: str | None = None
+
     # ── Models ───────────────────────────────────────────────────────────────
     generation_model: str = "claude-opus-4-8"
     embedding_model: str = "voyage-3"
@@ -48,6 +54,10 @@ class Settings(BaseSettings):
     retrieval_top_n: int = Field(default=40, ge=1)
     rerank_top_k: int = Field(default=6, ge=1)
     embedding_dimensions: int = Field(default=1024, ge=1)
+
+    # ── Indexing tunables ────────────────────────────────────────────────────
+    chunk_size: int = Field(default=400, ge=1)
+    chunk_overlap: int = Field(default=80, ge=0)
 
     # ── AWS S3 (ingestion source) ────────────────────────────────────────────
     aws_region: str = "us-east-1"

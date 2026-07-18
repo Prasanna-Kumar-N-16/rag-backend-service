@@ -11,19 +11,20 @@ from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
+from app.api.dependencies import get_indexer
 from app.api.schemas import IngestRequest, IngestResponse
+from app.api.security import require_api_key
 from app.config import Settings, get_settings
 from app.indexing.indexer import Indexer
 from app.logging import get_logger
 
-router = APIRouter(prefix="/v1", tags=["ingest"])
+router = APIRouter(prefix="/v1", tags=["ingest"], dependencies=[Depends(require_api_key)])
 logger = get_logger(__name__)
 
 
-async def _run_indexing(settings: Settings, s3_prefix: str) -> None:
-    """Background task: instantiate indexer and run the pipeline."""
+async def _run_indexing(indexer: Indexer, s3_prefix: str) -> None:
+    """Background task: run the pipeline on the shared indexer singleton."""
     try:
-        indexer = Indexer(settings)
         result = await indexer.index_prefix(s3_prefix)
         logger.info("ingest_complete", prefix=s3_prefix, **result)
     except Exception as exc:  # noqa: BLE001
@@ -53,8 +54,13 @@ async def ingest(
             detail="VOYAGE_API_KEY is not configured on this server.",
         )
 
+    # Resolved after the checks above (not as a route-level Depends) so a
+    # missing S3_BUCKET/VOYAGE_API_KEY still yields a clean 422 instead of
+    # failing during Indexer construction.
+    indexer = get_indexer(settings)
+
     logger.info("ingest_queued", prefix=body.s3_prefix, bucket=settings.s3_bucket)
-    background_tasks.add_task(_run_indexing, settings, body.s3_prefix)
+    background_tasks.add_task(_run_indexing, indexer, body.s3_prefix)
 
     return IngestResponse(
         status="accepted",

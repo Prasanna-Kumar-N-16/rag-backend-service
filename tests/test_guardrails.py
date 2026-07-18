@@ -67,6 +67,18 @@ class TestPIIMasking:
         result = mask_pii("a@b.com c@d.com")
         assert result.found_types.count("EMAIL") == 1
 
+    def test_luhn_valid_card_masked(self) -> None:
+        # Standard Visa test number — passes the Luhn checksum.
+        result = mask_pii("Card number 4111111111111111 on file.")
+        assert "4111111111111111" not in result.masked_text
+        assert "CREDIT_CARD" in result.found_types
+
+    def test_luhn_invalid_digit_run_not_masked(self) -> None:
+        # 16 digits but fails Luhn — e.g. an order/tracking number, not a card.
+        result = mask_pii("Order number 1234567890123456 was shipped.")
+        assert "1234567890123456" in result.masked_text
+        assert "CREDIT_CARD" not in result.found_types
+
 
 # ── Prompt injection detection ────────────────────────────────────────────────
 

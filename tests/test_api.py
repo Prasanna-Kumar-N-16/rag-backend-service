@@ -211,6 +211,7 @@ class TestIngestEndpoint:
         no_bucket = Settings(
             s3_bucket=None,
             voyage_api_key="test",
+            api_key="test-api-key",
             database_url="postgresql://x:x@localhost/test",
         )
         app.dependency_overrides[_get_settings] = lambda: no_bucket
@@ -224,11 +225,48 @@ class TestIngestEndpoint:
         no_key = Settings(
             s3_bucket="my-bucket",
             voyage_api_key=None,
+            api_key="test-api-key",
             database_url="postgresql://x:x@localhost/test",
         )
         app.dependency_overrides[_get_settings] = lambda: no_key
         resp = client.post("/v1/ingest", json={"s3_prefix": "docs/"})
         assert resp.status_code == 422
+
+
+# ── API-key auth ─────────────────────────────────────────────────────────────
+
+class TestApiKeyAuth:
+    def test_query_without_key_returns_401(self, client: TestClient) -> None:
+        client.headers.pop("X-API-Key", None)
+        resp = client.post("/v1/query", json={"query": "test"})
+        assert resp.status_code == 401
+
+    def test_query_with_wrong_key_returns_401(self, client: TestClient) -> None:
+        resp = client.post(
+            "/v1/query", json={"query": "test"}, headers={"X-API-Key": "wrong-key"}
+        )
+        assert resp.status_code == 401
+
+    def test_ingest_without_key_returns_401(self, client: TestClient) -> None:
+        client.headers.pop("X-API-Key", None)
+        resp = client.post("/v1/ingest", json={"s3_prefix": "docs/"})
+        assert resp.status_code == 401
+
+    def test_health_does_not_require_key(self, client: TestClient) -> None:
+        client.headers.pop("X-API-Key", None)
+        assert client.get("/healthz").status_code == 200
+
+    def test_unconfigured_api_key_returns_500(self, app: FastAPI, client: TestClient) -> None:
+        from app.config import Settings
+        from app.config import get_settings as _get_settings
+
+        unconfigured = Settings(
+            api_key=None,
+            database_url="postgresql://x:x@localhost/test",
+        )
+        app.dependency_overrides[_get_settings] = lambda: unconfigured
+        resp = client.post("/v1/query", json={"query": "test"})
+        assert resp.status_code == 500
 
 
 # ── health endpoints still pass with new middleware ──────────────────────────

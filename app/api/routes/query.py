@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies import get_embedder, get_reranker, get_synthesizer
 from app.api.schemas import QueryRequest, QueryResponse, SourceSchema
+from app.api.security import require_api_key
 from app.config import Settings, get_settings
 from app.generation.synthesizer import Synthesizer
 from app.guardrails.output_guard import validate_output
@@ -26,7 +27,7 @@ from app.logging import get_logger
 from app.retrieval.hybrid import hybrid_retrieve
 from app.retrieval.reranker import Reranker
 
-router = APIRouter(prefix="/v1", tags=["query"])
+router = APIRouter(prefix="/v1", tags=["query"], dependencies=[Depends(require_api_key)])
 logger = get_logger(__name__)
 
 

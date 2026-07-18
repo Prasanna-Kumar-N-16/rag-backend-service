@@ -65,3 +65,19 @@ def test_returns_chunk_dataclass_instances() -> None:
 
 def test_whitespace_only_text_returns_no_chunks() -> None:
     assert chunk_text("   \n\n   \t  ") == []
+
+
+def test_oversized_atomic_piece_is_hard_split() -> None:
+    # No whitespace/newline separators (e.g. a long URL or base64 blob), so
+    # the recursive splitter exhausts every separator without breaking it up.
+    atomic = "a" * 2000
+    chunk_size = 100
+    chunks = chunk_text(atomic, chunk_size=chunk_size, overlap=10)
+
+    assert len(chunks) > 1
+    max_chars = chunk_size * 4
+    for chunk in chunks:
+        assert len(chunk.text) <= max_chars
+
+    # No characters lost or duplicated across the hard-split boundaries.
+    assert "".join(c.text for c in chunks) == atomic
