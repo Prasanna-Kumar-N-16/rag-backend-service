@@ -18,7 +18,7 @@ dependencies = [
     "pydantic==2.10.4",
     "pydantic-settings==2.7.1",
     "structlog==24.4.0",
-    "anthropic==0.42.0",
+    "anthropic==0.117.0",
     "voyageai==0.3.2",
     "cohere==5.13.6",
     "asyncpg==0.30.0",
