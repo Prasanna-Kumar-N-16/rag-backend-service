@@ -14,7 +14,7 @@ license-files = ["LICENSE"]
 # NOTE: strict (==) pins for reproducibility.
 dependencies = [
     "fastapi==0.115.6",
-    "uvicorn[standard]==0.34.0",
+    "uvicorn[standard]==0.51.0",
     "pydantic==2.10.4",
     "pydantic-settings==2.7.1",
     "structlog==24.4.0",
