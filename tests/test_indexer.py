@@ -151,7 +151,7 @@ class TestIndexer:
 
         # Set up asyncpg mock
         mock_conn = AsyncMock()
-        mock_conn.execute = AsyncMock(return_value=None)
+        mock_conn.executemany = AsyncMock(return_value=None)
         mock_pool = MagicMock()
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -161,7 +161,11 @@ class TestIndexer:
         count = await indexer.index_key("doc.txt")
 
         assert count >= 1
-        assert mock_conn.execute.called
+        assert mock_conn.executemany.called
+        # All chunk rows go out in a single batched executemany call, never as
+        # concurrent per-chunk executes on the shared connection.
+        (_sql, rows), _kwargs = mock_conn.executemany.call_args
+        assert len(rows) == count
 
     @patch("app.indexing.indexer.get_pool")
     @patch("app.indexing.indexer.Embedder")
@@ -212,7 +216,7 @@ class TestIndexer:
         mock_embedder_cls.return_value = mock_embedder
 
         mock_conn = AsyncMock()
-        mock_conn.execute = AsyncMock(return_value=None)
+        mock_conn.executemany = AsyncMock(return_value=None)
         mock_pool = MagicMock()
         mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -222,3 +226,74 @@ class TestIndexer:
         result = await indexer.index_prefix("")
         assert result["processed"] == 2
         assert result["chunks"] >= 2
+
+    @patch("app.indexing.indexer.get_pool")
+    @patch("app.indexing.indexer.Embedder")
+    @patch("app.indexing.indexer.S3Loader")
+    async def test_upsert_never_runs_concurrent_ops_on_one_connection(
+        self,
+        mock_loader_cls: MagicMock,
+        mock_embedder_cls: MagicMock,
+        mock_get_pool: MagicMock,
+        settings: Settings,
+    ) -> None:
+        """Regression guard for the asyncpg single-operation-per-connection rule.
+
+        A real asyncpg connection raises ``InterfaceError`` if a second
+        operation starts while another is in flight. This fake connection
+        enforces the same invariant, so reintroducing a parallel
+        ``asyncio.gather(conn.execute(...))`` pattern would fail this test.
+        """
+        import asyncio
+
+        from app.indexing.indexer import Indexer
+
+        mock_loader = MagicMock()
+        mock_loader.fetch = AsyncMock(
+            return_value=MagicMock(
+                key="doc.txt",
+                content=b"This is a test document. " * 200,
+            )
+        )
+        mock_loader_cls.return_value = mock_loader
+
+        mock_embedder = AsyncMock()
+        mock_embedder.embed = AsyncMock(
+            side_effect=lambda texts: [[0.1, 0.2, 0.3, 0.4]] * len(texts)
+        )
+        mock_embedder_cls.return_value = mock_embedder
+
+        class SingleOpConnection:
+            """Rejects overlapping operations the way asyncpg does."""
+
+            def __init__(self) -> None:
+                self._busy = False
+                self.executemany_calls = 0
+
+            async def _run(self) -> None:
+                if self._busy:
+                    raise RuntimeError(
+                        "cannot perform operation: another operation is in progress"
+                    )
+                self._busy = True
+                await asyncio.sleep(0)  # yield so overlapping callers collide
+                self._busy = False
+
+            async def execute(self, *args: Any, **kwargs: Any) -> None:
+                await self._run()
+
+            async def executemany(self, *args: Any, **kwargs: Any) -> None:
+                self.executemany_calls += 1
+                await self._run()
+
+        conn = SingleOpConnection()
+        mock_pool = MagicMock()
+        mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=conn)
+        mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_get_pool.return_value = mock_pool
+
+        indexer = Indexer(settings)
+        count = await indexer.index_key("doc.txt")
+
+        assert count > 1  # multi-chunk doc, so the bug would have surfaced
+        assert conn.executemany_calls == 1

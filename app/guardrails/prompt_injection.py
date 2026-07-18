@@ -20,6 +20,7 @@ import re
 from dataclasses import dataclass, field
 
 from app.logging import get_logger
+from app.retrieval.reranker import RankedResult
 
 logger = get_logger(__name__)
 
@@ -141,3 +142,25 @@ def check_injection(text: str) -> InjectionResult:
         matched_patterns=matched,
         heuristic_flags=heuristics,
     )
+
+
+def check_context_injection(chunks: list[RankedResult]) -> InjectionResult:
+    """Scan retrieved context chunks for prompt injection indicators.
+
+    Defends against indirect (second-order) injection: a poisoned source
+    document whose content carries meta-instructions that could hijack the
+    generation step once it reaches the Claude prompt. This is a distinct
+    attack surface from :func:`check_injection`, which only sees the user's
+    own query text.
+
+    Args:
+        chunks: Reranked context chunks about to be sent to generation.
+
+    Returns:
+        :class:`InjectionResult` for the concatenated chunk text. An empty
+        chunk list returns a clean (non-injection) result.
+    """
+    if not chunks:
+        return InjectionResult(is_injection=False)
+    combined = "\n\n".join(chunk.content for chunk in chunks)
+    return check_injection(combined)

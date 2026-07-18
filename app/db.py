@@ -46,6 +46,21 @@ CREATE INDEX IF NOT EXISTS document_chunks_hash_idx
 """
 
 
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Per-connection pool initializer.
+
+    The pgvector codec can only be registered once the ``vector`` type exists,
+    so the extension must be created *before* :func:`register_vector` runs. The
+    pool opens its initial connections eagerly during ``create_pool`` — before
+    any schema DDL below has executed — so on a first boot against a brand-new
+    database, registering the codec here without first ensuring the extension
+    fails with ``unknown type: public.vector``. Creating the extension in the
+    initializer (idempotent) guarantees correct ordering on every connection.
+    """
+    await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    await register_vector(conn)
+
+
 async def init_db(settings: Settings) -> None:
     """Open the asyncpg pool and bootstrap the pgvector schema."""
     global _pool  # noqa: PLW0603
@@ -55,8 +70,9 @@ async def init_db(settings: Settings) -> None:
         dsn=settings.database_url,
         min_size=settings.db_pool_min_size,
         max_size=settings.db_pool_max_size,
-        # Register the pgvector codec for every new connection in the pool.
-        init=register_vector,
+        # Ensure the vector extension exists, then register its codec, for
+        # every new connection in the pool.
+        init=_init_connection,
     )
 
     async with _pool.acquire() as conn:
