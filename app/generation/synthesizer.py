@@ -64,7 +64,7 @@ class Synthesizer:
 
         Args:
             query: The user's question.
-            ranked_results: Reranked context chunks (top-k from Day 3 pipeline).
+            ranked_results: Reranked context chunks (top-k from the retrieval pipeline).
             max_tokens: Max tokens for the Claude response.
 
         Returns:

@@ -4,7 +4,8 @@
 #
 # Provider keys are read from the host environment (or an .env file that Compose
 # auto-loads) so no secrets are baked into the image or this file. The API boots
-# health-only if the keys are absent; /v1/query and /v1/ingest need them set.
+# health-only if the keys are absent; /v1/query and /v1/ingest need them set,
+# plus API_KEY (callers must send it back as the X-API-Key header).
 
 services:
   db:
@@ -33,6 +34,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
       COHERE_API_KEY: ${COHERE_API_KEY:-}
+      API_KEY: ${API_KEY:-}
       S3_BUCKET: ${S3_BUCKET:-}
       AWS_REGION: ${AWS_REGION:-us-east-1}
     ports:

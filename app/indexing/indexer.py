@@ -89,8 +89,8 @@ class Indexer:
         """Chunk, embed, and upsert all chunks for one document."""
         chunks = chunk_text(
             text,
-            chunk_size=400,
-            overlap=80,
+            chunk_size=self._settings.chunk_size,
+            overlap=self._settings.chunk_overlap,
         )
         if not chunks:
             return 0

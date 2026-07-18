@@ -1,1 +1,1 @@
-"""Golden-dataset evaluation and faithfulness scoring (Day 6)."""
+"""Golden-dataset evaluation and faithfulness scoring."""

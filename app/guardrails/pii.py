@@ -38,7 +38,9 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("SSN", re.compile(
         r"\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b",
     )),
-    # Credit/debit card (Luhn-ignorant, 13-19 digits with optional spaces/dashes)
+    # Credit/debit card candidate (13-19 digits with optional spaces/dashes).
+    # Luhn-validated separately in ``_redact_credit_cards`` — the raw regex
+    # alone matches any long digit run (phone extensions, order IDs, etc.).
     ("CREDIT_CARD", re.compile(
         r"\b(?:\d[ \-]?){13,19}\b",
     )),
@@ -62,6 +64,37 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------
+
+def _luhn_valid(candidate: str) -> bool:
+    """Check the Luhn checksum for a digit run (spaces/dashes ignored)."""
+    digits = [int(c) for c in candidate if c.isdigit()]
+    if len(digits) < 13:
+        return False
+    checksum = 0
+    parity = len(digits) % 2
+    for i, digit in enumerate(digits):
+        if i % 2 == parity:
+            digit *= 2
+            if digit > 9:
+                digit -= 9
+        checksum += digit
+    return checksum % 10 == 0
+
+
+def _redact_credit_cards(text: str, pattern: re.Pattern[str]) -> tuple[str, int]:
+    """Redact only regex matches that also pass a Luhn checksum."""
+    parts: list[str] = []
+    last_end = 0
+    count = 0
+    for m in pattern.finditer(text):
+        if _luhn_valid(m.group()):
+            parts.append(text[last_end : m.start()])
+            parts.append("[REDACTED:CREDIT_CARD]")
+            last_end = m.end()
+            count += 1
+    parts.append(text[last_end:])
+    return "".join(parts), count
+
 
 @dataclass
 class PIIResult:
@@ -95,7 +128,10 @@ def mask_pii(text: str) -> PIIResult:
     found: list[str] = []
 
     for entity_type, pattern in _PATTERNS:
-        new_text, count = pattern.subn(f"[REDACTED:{entity_type}]", masked)
+        if entity_type == "CREDIT_CARD":
+            new_text, count = _redact_credit_cards(masked, pattern)
+        else:
+            new_text, count = pattern.subn(f"[REDACTED:{entity_type}]", masked)
         if count:
             masked = new_text
             found.append(entity_type)

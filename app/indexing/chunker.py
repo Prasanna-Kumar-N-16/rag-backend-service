@@ -33,20 +33,31 @@ def _approx_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
-def _split_text(text: str, separators: list[str]) -> list[str]:
+def _split_text(text: str, separators: list[str], chunk_size: int) -> list[str]:
     """Recursively split *text* using the first matching separator."""
     if not separators:
-        # No more separators — return the text as-is (atomic piece).
-        return [text] if text.strip() else []
+        if not text.strip():
+            return []
+        if _approx_tokens(text) <= chunk_size:
+            return [text]
+        # No separators left and still too big (e.g. a long URL, base64 blob,
+        # or unspaced CJK text) — hard-split by character count so no chunk
+        # ever exceeds the configured budget.
+        max_chars = chunk_size * 4
+        return [
+            text[i : i + max_chars]
+            for i in range(0, len(text), max_chars)
+            if text[i : i + max_chars].strip()
+        ]
     sep, *rest = separators
     parts = text.split(sep)
     if len(parts) == 1:
         # Separator not found — try the next one.
-        return _split_text(text, rest)
+        return _split_text(text, rest, chunk_size)
     result = []
     for p in parts:
         if p.strip():
-            result.extend(_split_text(p, rest))
+            result.extend(_split_text(p, rest, chunk_size))
     return result
 
 
@@ -68,7 +79,7 @@ def chunk_text(
     if not text.strip():
         return []
 
-    pieces = _split_text(text.strip(), _SEPARATORS)
+    pieces = _split_text(text.strip(), _SEPARATORS, chunk_size)
     if not pieces:
         return []
 

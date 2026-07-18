@@ -1,7 +1,7 @@
 """pgvector cosine-similarity search.
 
 Returns ranked candidates (source_key, chunk text, score) from the
-``document_chunks`` table using the HNSW index built in Day 2.
+``document_chunks`` table using its HNSW index.
 """
 
 from __future__ import annotations

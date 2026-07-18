@@ -30,11 +30,13 @@ from app.main import create_app
 
 # Test settings with all required fields populated so routes never raise
 # "not configured" HTTPExceptions during normal test setup.
+TEST_API_KEY = "test-api-key"
 _TEST_SETTINGS = Settings(
     anthropic_api_key="test-anthropic",
     voyage_api_key="test-voyage",
     cohere_api_key="test-cohere",
     s3_bucket="test-bucket",
+    api_key=TEST_API_KEY,
     database_url="postgresql://x:x@localhost/test",
     environment="development",
     log_json=False,
@@ -67,6 +69,7 @@ def app() -> Iterator[FastAPI]:
 
 @pytest.fixture()
 def client(app: FastAPI) -> Iterator[TestClient]:
-    """Yield a TestClient bound to the mocked app."""
+    """Yield a TestClient bound to the mocked app, pre-authenticated."""
     with TestClient(app) as test_client:
+        test_client.headers.update({"X-API-Key": TEST_API_KEY})
         yield test_client

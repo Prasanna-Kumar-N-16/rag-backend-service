@@ -1,1 +1,1 @@
-"""Answer generation with Anthropic Claude (Day 4)."""
+"""Answer generation with Anthropic Claude."""
