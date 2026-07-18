@@ -2,7 +2,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-105-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-115-brightgreen.svg)](tests/)
 [![Type-checked: mypy strict](https://img.shields.io/badge/mypy-strict-blue.svg)](pyproject.toml)
 
 Production-ready Retrieval-Augmented Generation (RAG) backend.
@@ -10,17 +10,16 @@ Production-ready Retrieval-Augmented Generation (RAG) backend.
 **Stack:** Python 3.12 · FastAPI · PostgreSQL + pgvector · Anthropic Claude
 (`claude-opus-4-8`) · Voyage AI embeddings · Cohere reranking.
 
-> ✅ **Status: Days 1–6 complete.** In place today: FastAPI scaffold, config &
-> structured logging, health/readiness probes, the pgvector data layer &
-> ingestion pipeline (S3 → chunk → embed → upsert), multi-stage hybrid
-> retrieval (vector + lexical + RRF + Cohere rerank), grounded Claude
-> generation with the API layer, Responsible-AI guardrails (PII masking,
-> prompt-injection defense, output validation), a golden-dataset evaluation
-> harness (retrieval + faithfulness metrics + CLI), and a container stack
-> (Dockerfile + `docker compose` app + pgvector). **105 tests** pass under
-> strict `mypy`, enforced in CI. Durable ingestion (replacing the in-process
-> `BackgroundTasks` with a real worker queue) is the remaining milestone —
-> see [`docs/plans/`](docs/plans/).
+> ✅ **Status:** FastAPI scaffold, config & structured logging,
+> health/readiness probes, the pgvector data layer & ingestion pipeline (S3 →
+> chunk → embed → upsert), multi-stage hybrid retrieval (vector + lexical +
+> RRF + Cohere rerank), grounded Claude generation with the API layer,
+> Responsible-AI guardrails (PII masking, prompt-injection defense, output
+> validation), a golden-dataset evaluation harness (retrieval + faithfulness
+> metrics + CLI), and a container stack (Dockerfile + `docker compose` app +
+> pgvector). **115 tests** pass under strict `mypy`, enforced in CI. Durable
+> ingestion (replacing the in-process `BackgroundTasks` with a real worker
+> queue) is the remaining milestone.
 
 ## Architecture (target)
 
@@ -41,7 +40,7 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 
-# 2. Configure (all keys optional for the health-only Day 1 boot)
+# 2. Configure (all keys optional for the health-only boot)
 cp .env.example .env
 
 # 3. Run

@@ -1,1 +1,1 @@
-"""Multi-stage hybrid retrieval and reranking (Day 3)."""
+"""Multi-stage hybrid retrieval and reranking."""
